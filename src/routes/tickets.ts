@@ -6,6 +6,10 @@ import {
   updateTicketStatus,
 } from '../dal/tickets.js';
 import authMiddleware from '../middleware/auth.js';
+import {
+  insertTimeLog,
+  getTotalHoursForTicket,
+} from '../dal/timeLogs.js';
 
 const router = Router();
 
@@ -107,6 +111,50 @@ router.patch(
     }
 
     res.status(200).json(ticket);
+  },
+);
+
+// POST /tickets/:id/time
+router.post(
+  '/:id/time',
+  authMiddleware,
+  async (req: Request, res: Response) => {
+    const ticketId = Number(req.params.id);
+    const userId = res.locals.userId;
+    const { hours } = req.body;
+
+    if (
+      !Number.isInteger(ticketId) ||
+      ticketId < 1 ||
+      typeof hours !== 'number' ||
+      hours <= 0
+    ) {
+      res.status(400).json({ error: 'Invalid time log payload' });
+      return;
+    }
+
+    const timeLog = await insertTimeLog(ticketId, userId, hours);
+
+    res.status(201).json(timeLog);
+  },
+);
+
+router.get(
+  '/:id/time',
+  async (req: Request, res: Response) => {
+    const ticketId = Number(req.params.id);
+
+    if (!Number.isInteger(ticketId) || ticketId < 1) {
+      res.status(404).json({ error: 'Ticket not found' });
+      return;
+    }
+
+    const totalHours = await getTotalHoursForTicket(ticketId);
+
+    res.status(200).json({
+      ticket_id: ticketId,
+      total_hours: totalHours,
+    });
   },
 );
 
